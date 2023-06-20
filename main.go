@@ -19,15 +19,13 @@ func main() {
 
 	rows, _ := db.Query("select * from transactions")
 	
-	if _, err := db.Exec(`
-		drop table if exists transactions;
-		CREATE TABLE transactions
-   		    (id INTEGER PRIMARY KEY,
-   		     desc TEXT DEFAULT '',
-   			sum INTEGER);
-		`); err != nil {
-			fmt.Println(err)
-		}
+	if err := migrate(db); err != nil {
+		fmt.Println(err)
+	}
+
+	if err := seed(db); err != nil {
+		fmt.Println(err)
+	}
 
 	var transactions []Transaction
 	for rows.Next(){
@@ -38,10 +36,38 @@ func main() {
 		transactions = append(transactions, transaction)
 	}
 
+
 	fmt.Printf("%v", transactions)
 
 	if err := db.Close(); err != nil {
 		fmt.Println(err)
 	}
 
+}
+
+func migrate(db *sql.DB) error {
+	if _, err := db.Exec(`
+	drop table if exists transactions;
+	CREATE TABLE transactions
+		   (id INTEGER PRIMARY KEY,
+			desc TEXT DEFAULT '',
+		   sum INTEGER);
+	`); err != nil {
+		return err
+	}
+	return nil
+}
+
+func seed(db *sql.DB) error {
+	query := `
+	INSERT INTO transactions (desc, sum) 
+	values
+	('one', 170), 
+	('two', 30),
+	('tree', 120);
+	`;
+	if _, err := db.Exec(query); err != nil {
+		return err
+	}
+	return nil
 }
