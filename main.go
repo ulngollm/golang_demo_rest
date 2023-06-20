@@ -1,73 +1,65 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
+	repo "app/db"
+	"strconv"
 
-	_ "modernc.org/sqlite"
+	"github.com/gin-gonic/gin"
 )
 
 
-type Transaction struct {
-	Id int64
-	Desc string
-	Sum int64
+func main(){
+	router := gin.Default()
+	router.GET("/", home)
+	router.GET("/transactions", getTransactionsList)
+	router.POST("/transactions/", addTransaction)
+	router.GET("/transactions/:id", getTransaction)
+	router.DELETE("/transactions/:id", deleteTransaction)
+
+	router.Run(":3333")
 }
 
-func main() {
-	db, _ := sql.Open("sqlite", "file:app.db")
-
-	rows, _ := db.Query("select * from transactions")
-	
-	if err := migrate(db); err != nil {
-		fmt.Println(err)
-	}
-
-	if err := seed(db); err != nil {
-		fmt.Println(err)
-	}
-
-	var transactions []Transaction
-	for rows.Next(){
-		var transaction Transaction
-		if err := rows.Scan(&transaction.Id, &transaction.Desc, &transaction.Sum); err != nil {
-			fmt.Println(err)
-		}
-		transactions = append(transactions, transaction)
-	}
-
-
-	fmt.Printf("%v", transactions)
-
-	if err := db.Close(); err != nil {
-		fmt.Println(err)
-	}
-
+func home(c *gin.Context) {
+	c.String(200, "Homepage")
 }
 
-func migrate(db *sql.DB) error {
-	if _, err := db.Exec(`
-	drop table if exists transactions;
-	CREATE TABLE transactions
-		   (id INTEGER PRIMARY KEY,
-			desc TEXT DEFAULT '',
-		   sum INTEGER);
-	`); err != nil {
-		return err
-	}
-	return nil
+func getTransactionsList(c *gin.Context) {
+	transactions := repo.GetList()
+	c.JSON(200, transactions)
 }
 
-func seed(db *sql.DB) error {
-	query := `
-	INSERT INTO transactions (desc, sum) 
-	values
-	('one', 170), 
-	('two', 30),
-	('tree', 120);
-	`;
-	if _, err := db.Exec(query); err != nil {
-		return err
+func addTransaction(c *gin.Context) {
+	var t repo.Transaction
+	err := c.BindJSON(&t)
+	if err != nil {
+		c.JSON(500, gin.H{"message": "wrong body"})
+		return
 	}
-	return nil
+
+	t.Id, err = repo.Save(t)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(201, t)
+}
+
+func getTransaction(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	t, _ := repo.GetOne(id)
+	if t.Id == 0 {
+		c.JSON(404, gin.H{"message": "not found"})
+		return
+	}
+	c.JSON(200, t)
+}
+
+func deleteTransaction(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	err := repo.Delete(id)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"message": "success"})
 }
