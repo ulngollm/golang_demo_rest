@@ -1,22 +1,24 @@
 package repo
 
 import (
-	"database/sql"
 	"fmt"
 
+	"github.com/go-faker/faker/v4"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	_ "modernc.org/sqlite"
 )
 
 type Transaction struct {
-	Id int64 `json:"id"`
+	gorm.Model
 	Desc string `json:"desc"`
 	Sum int64 `json:"sum"`
 }
 
-var db *sql.DB
+var db *gorm.DB
 
 func init() {
-	connection, err := sql.Open("sqlite", "file:app.db"); 
+	connection, err := gorm.Open(sqlite.Open("app.db"), &gorm.Config{}); 
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -32,34 +34,23 @@ func init() {
 		fmt.Println(err)
 	}
 
-	// if err := db.Close(); err != nil {
-	// 	fmt.Println(err)
-	// }
 }
 
-func migrate(db *sql.DB) error {
-	if _, err := db.Exec(`
-	drop table if exists transactions;
-	CREATE TABLE transactions
-		   (id INTEGER PRIMARY KEY,
-			desc TEXT DEFAULT '',
-		   sum INTEGER);
-	`); err != nil {
-		return err
-	}
+func migrate(db *gorm.DB) error {
+	db.AutoMigrate(&Transaction{})
 	return nil
 }
 
-func seed(db *sql.DB) error {
-	query := `
-	INSERT INTO transactions (desc, sum) 
-	values
-	('one', 170), 
-	('two', 30),
-	('tree', 120);
-	`;
-	if _, err := db.Exec(query); err != nil {
-		return err
-	}
+func seed(db *gorm.DB) error {
+	var transaction []Transaction
+	for i := 0; i < 10; i++ {
+		t := Transaction{
+			Desc: faker.Word(),
+			Sum: 100,
+		}
+		transaction = append(transaction, t )
+	} 
+
+	db.CreateInBatches(&Transaction{}, 4)
 	return nil
 }

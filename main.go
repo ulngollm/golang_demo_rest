@@ -24,7 +24,11 @@ func home(c *gin.Context) {
 }
 
 func getTransactionsList(c *gin.Context) {
-	transactions := repo.GetList()
+	transactions, err := repo.GetList()
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error()})
+		return
+	}
 	c.JSON(200, transactions)
 }
 
@@ -32,11 +36,11 @@ func addTransaction(c *gin.Context) {
 	var t repo.Transaction
 	err := c.BindJSON(&t)
 	if err != nil {
-		c.JSON(500, gin.H{"message": "wrong body"})
+		c.JSON(500, gin.H{"message": err.Error()})
 		return
 	}
 
-	t.Id, err = repo.Save(t)
+	t, err = repo.Save(t)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error()})
 		return
@@ -46,9 +50,9 @@ func addTransaction(c *gin.Context) {
 
 func getTransaction(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	t, _ := repo.GetOne(id)
-	if t.Id == 0 {
-		c.JSON(404, gin.H{"message": "not found"})
+	t, err := repo.GetOne(id)
+	if err != nil {
+		c.JSON(404, gin.H{"message": err.Error()})
 		return
 	}
 	c.JSON(200, t)

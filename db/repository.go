@@ -1,52 +1,26 @@
 package repo
 
-import (
-	"fmt"
-)
-
-func GetList() []Transaction {
-	rows, _ := db.Query("select * from transactions")
+func GetList() ([]Transaction, error) {
 	var transactions []Transaction
-	for rows.Next(){
-		var transaction Transaction
-		if err := rows.Scan(&transaction.Id, &transaction.Desc, &transaction.Sum); err != nil {
-			fmt.Println(err)
-		}
-		transactions = append(transactions, transaction)
-	}
+	result := db.Find(&transactions)
 
-	return transactions
+	return transactions, result.Error
 }
 
 func GetOne(id int) (Transaction, error) {
 	var t Transaction
-	row := db.QueryRow("SELECT * from transactions WHERE id = ?", id)
-	if err := row.Scan(&t.Id, &t.Desc, &t.Sum); err != nil {
-		return t, err
-	}
-
-	return t, nil
+	result := db.First(t, id)
+	return t, result.Error
 }
 
-func Save(t Transaction) (int64, error) {
-	result, _ := db.Exec("INSERT INTO transactions (desc, sum) values (?, ?)", t.Desc, t.Sum)
-	id, err := result.LastInsertId()
-    if err != nil {
-        return 0, err
-    }
-    return id, nil
+func Save(t Transaction) (Transaction, error) {
+	result := db.Create(&t)
+    return t, result.Error
 }
 
 func Delete(id int) error {
-	result, err := db.Exec("DELETE FROM transactions WHERE id = ?", id)
-	if err != nil {
-		return err
-	}
-
-	count, err := result.RowsAffected()
-	if count == 0 {
-		return fmt.Errorf("not found value with id %d", id)
-	}
-
-	return err
+	result:= db.Delete(&Transaction{}, id)
+	// if not found ?
+	
+	return result.Error
 }
